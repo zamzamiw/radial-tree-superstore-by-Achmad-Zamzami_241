@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>D3 Radial Tree</title>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <style>
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+
+body{
+  margin:0;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at center,
+    #111827 0%,
+    #020617 100%);
+  font-family:'Poppins',sans-serif;
+}
+
+svg{
+  width:100vw;
+  height:100vh;
+  cursor:grab;
+}
+
+
+.link{
+  fill:none;
+  stroke:url(#line-gradient);
+  stroke-opacity:0.7;
+  stroke-width:1.5px;
+  filter:drop-shadow(0px 0px 4px #00F5D4);
+}
+
+.node circle{
+  animation:pulse 3s infinite;
+}
+
+@keyframes pulse{
+
+  0%{
+    filter:drop-shadow(0px 0px 5px #00F5D4);
+  }
+
+  50%{
+    filter:drop-shadow(0px 0px 15px #F15BB5);
+  }
+
+  100%{
+    filter:drop-shadow(0px 0px 5px #00F5D4);
+  }
+
+}
+
+.node text{
+  fill:white;
+  font-size:12px;
+  letter-spacing:0.5px;
+}
+
+
+text{
+  user-select:none;
+}
+
+.panel{
+  position:absolute;
+  top:20px;
+  left:20px;
+
+  width:260px;
+
+  padding:20px;
+
+  border-radius:20px;
+
+  background:rgba(255,255,255,0.08);
+
+  backdrop-filter:blur(12px);
+
+  border:1px solid rgba(255,255,255,0.1);
+
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.37);
+
+  color:white;
+
+  z-index:10;
+}
+
+.panel h2{
+  margin-top:0;
+  font-size:20px;
+}
+
+.panel select{
+  width:100%;
+  padding:10px;
+
+  border:none;
+
+  border-radius:10px;
+
+  background:#111827;
+
+  color:white;
+
+  margin-top:10px;
+}
+
+.miniMap{
+
+  position:absolute;
+
+  bottom:20px;
+  right:20px;
+
+  width:180px;
+  height:180px;
+
+  border-radius:20px;
+
+  background:rgba(255,255,255,0.06);
+
+  backdrop-filter:blur(12px);
+
+  border:1px solid rgba(255,255,255,0.1);
+
+  overflow:hidden;
+
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.37);
+
+}
+
+#miniSvg{
+  width:100%;
+  height:100%;
+}
+.info{
+  margin-top:15px;
+  font-size:14px;
+  opacity:0.8;
+}
+
+/* METEOR / SHOOTING STARS */
+.meteor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0;
+  animation: twinkle 3s infinite;
+}
+
+.meteor-line {
+  position: absolute;
+  width: 2px;
+  height: 80px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0), #00F5D4, #F15BB5);
+  border-radius: 2px;
+  opacity: 0;
+  animation: shoot var(--dur) linear infinite;
+  animation-delay: var(--delay);
+  top: var(--top);
+  left: var(--left);
+  transform: rotate(135deg);
+}
+
+@keyframes shoot {
+  0%   { opacity: 0; transform: rotate(135deg) translateY(-100px); }
+  10%  { opacity: 1; }
+  80%  { opacity: 0.8; }
+  100% { opacity: 0; transform: rotate(135deg) translateY(600px); }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.1; transform: scale(1); }
+  50%       { opacity: 0.8; transform: scale(1.5); }
+}
+</style>
+</head>
+
+<body>
+    <!-- METEOR BACKGROUND -->
+<div class="meteor" id="meteorContainer"></div>
+
+<script>
+  const container = document.getElementById("meteorContainer");
+
+  // Bintang statis
+  for (let i = 0; i < 80; i++) {
+    const star = document.createElement("div");
+    star.className = "star";
+    star.style.top    = Math.random() * 100 + "%";
+    star.style.left   = Math.random() * 100 + "%";
+    star.style.animationDelay    = (Math.random() * 4) + "s";
+    star.style.animationDuration = (2 + Math.random() * 3) + "s";
+    star.style.width  = (Math.random() > 0.7 ? 3 : 2) + "px";
+    star.style.height = star.style.width;
+    container.appendChild(star);
+  }
+
+  // Meteor / bintang jatuh
+  for (let i = 0; i < 12; i++) {
+    const meteor = document.createElement("div");
+    meteor.className = "meteor-line";
+    meteor.style.setProperty("--top",   (Math.random() * 60) + "%");
+    meteor.style.setProperty("--left",  (Math.random() * 100) + "%");
+    meteor.style.setProperty("--dur",   (1.5 + Math.random() * 3) + "s");
+    meteor.style.setProperty("--delay", (Math.random() * 8) + "s");
+    container.appendChild(meteor);
+  }
+</script>
+<div class="panel">
+
+  <h2>Radial Tree Dashboard by Achmad Zamzami</h2>
+
+  <select id="categoryFilter">
+    <option value="all">All Categories</option>
+    <option value="Furniture">Furniture</option>
+    <option value="Technology">Technology</option>
+    <option value="Office Supplies">Office Supplies</option>
+  </select>
+
+  <div class="info">
+    Click node to explore
+  </div>
+
+</div>
+<div class="miniMap">
+  <svg id="miniSvg"></svg>
+</div>
+
+<svg id="mainSvg"></svg>
+
+<script>
+
+d3.json("data.json").then(function(data) {
+
+  // =========================
+  // GROUP DATA + SALES
+  // =========================
+
+  const grouped = d3.rollup(
+    data,
+    v => d3.sum(v, d => +d.Sales),
+    d => d.Tahun,
+    d => d.Quartal,
+    d => d.Category
+  );
+
+  // =========================
+  // BUILD HIERARCHY
+  // =========================
+
+  const hierarchyData = {
+    name: "Superstore",
+    children: Array.from(grouped, ([tahun, quartals]) => ({
+      name: tahun,
+      children: Array.from(quartals, ([quartal, categories]) => ({
+        name: quartal,
+        children: Array.from(categories, ([category, sales]) => ({
+          name: category,
+          sales: sales
+        }))
+      }))
+    }))
+  };
+
+  // =========================
+  // SIZE
+  // =========================
+
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const radius = Math.min(width, height) / 3;
+
+  // =========================
+  // SVG
+  // =========================
+
+const svg = d3.select("#mainSvg")
+  .attr(
+    "viewBox",
+    [
+      -width / 2,
+      -height / 2,
+      width,
+      height
+    ]
+  );
+
+  // =========================
+  // ZOOM & PAN
+  // =========================
+
+  const container = svg.append("g");
+
+ const zoom = d3.zoom()
+  .scaleExtent([0.5, 5])
+  .on("zoom", (event) => {
+
+    // MAIN SVG
+    container.attr("transform", event.transform);
+
+    // MINI MAP IKUT GERAK
+    miniGroup.attr(
+      "transform",
+      `
+      translate(${event.transform.x / 8},
+                ${event.transform.y / 8})
+      scale(${event.transform.k})
+      `
+    );
+
+  });
+
+svg.call(zoom);
+
+  // =========================
+  // TREE
+  // =========================
+
+  const tree = d3.tree()
+    .size([2 * Math.PI, radius]);
+
+  const root = tree(
+    d3.hierarchy(hierarchyData)
+  );
+
+  // =========================
+  // COLOR
+  // =========================
+
+  const color = d3.scaleOrdinal()
+    .domain(["Furniture", "Technology", "Office Supplies"])
+    .range([
+      "#F15BB5",
+      "#00F5D4",
+      "#FEE440"
+    ]);
+
+  // =========================
+  // GRADIENT
+  // =========================
+
+  const defs = svg.append("defs");
+
+  const gradient = defs.append("linearGradient")
+    .attr("id", "line-gradient");
+
+  gradient.append("stop")
+    .attr("offset", "0%")
+    .attr("stop-color", "#00F5D4");
+
+  gradient.append("stop")
+    .attr("offset", "100%")
+    .attr("stop-color", "#F15BB5");
+
+  // =========================
+  // LINK GENERATOR
+  // =========================
+
+  const radialLink = d3.linkRadial()
+    .angle(d => d.x)
+    .radius(d => d.y);
+
+  // =========================
+  // LINKS
+  // =========================
+
+  const links = container.append("g")
+    .selectAll("path")
+    .data(root.links())
+    .join("path")
+    .attr("fill", "none")
+    .attr("stroke", "url(#line-gradient)")
+    .attr("stroke-width", 1.5)
+    .attr("stroke-opacity", 0.6)
+    .style("filter", "drop-shadow(0px 0px 3px #00F5D4)")
+    .attr("d", d => {
+
+      const o = {x: d.source.x, y: 0};
+
+      return radialLink({
+        source: o,
+        target: o
+      });
+    });
+
+  // =========================
+  // ANIMATION CABANG TUMBUH
+  // =========================
+
+  links.transition()
+    .duration(2000)
+    .delay((d, i) => i * 20)
+    .attr("d", radialLink);
+
+  // =========================
+  // NODE
+  // =========================
+
+  const node = container.append("g")
+  .attr("class", "node")
+    .selectAll("g")
+    .data(root.descendants())
+    .join("g")
+    .attr("transform", d => `
+      rotate(${d.x * 180 / Math.PI - 90})
+      translate(0,0)
+    `)
+    .style("opacity", 0);
+
+  // =========================
+  // NODE APPEAR FROM CENTER
+  // =========================
+
+  node.transition()
+    .duration(2000)
+    .delay((d, i) => i * 30)
+    .style("opacity", 1)
+    .attr("transform", d => `
+      rotate(${d.x * 180 / Math.PI - 90})
+      translate(${d.y},0)
+    `);
+
+  // =========================
+  // NODE SIZE BY SALES
+  // =========================
+
+  const salesExtent = d3.extent(
+    root.descendants()
+      .filter(d => d.data.sales)
+      .map(d => d.data.sales)
+  );
+
+  const sizeScale = d3.scaleSqrt()
+    .domain(salesExtent)
+    .range([4, 14]);
+
+  // =========================
+  // CIRCLE
+  // =========================
+
+  node.append("circle")
+    .attr("r", d => {
+
+      if(d.depth === 0) return 14;
+
+      if(d.data.sales)
+        return sizeScale(d.data.sales);
+
+      return 5;
+    })
+
+    .attr("fill", d => {
+
+      if(d.depth === 0) return "#ffffff";
+
+      if(d.depth === 3)
+        return color(d.data.name);
+
+      return "#69b3a2";
+    })
+
+    .style("filter", d => `
+      drop-shadow(0px 0px 10px ${
+        d.depth === 3
+        ? color(d.data.name)
+        : "#69b3a2"
+      })
+    `)
+
+    // pseudo 3D
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 1);
+
+  // =========================
+  // TEXT
+  // =========================
+
+  node.append("text")
+    .attr("dy", "0.31em")
+    .attr("x", d => d.x < Math.PI ? 12 : -12)
+    .attr("text-anchor", d => d.x < Math.PI ? "start" : "end")
+    .attr("transform", d =>
+      d.x >= Math.PI ? "rotate(180)" : null
+    )
+    .style("fill", "white")
+    .style("font-size", "12px")
+    .style("font-family", "Poppins")
+    .text(d => d.data.name);
+
+    // =========================
+// CLICK INTERACTION
+// =========================
+
+node.on("click", function(event, d){
+
+  // reset semua node
+
+  node.select("circle")
+    .transition()
+    .duration(300)
+    .style("opacity", 0.2);
+
+  // highlight node dipilih
+
+  d3.select(this)
+    .select("circle")
+    .transition()
+    .duration(300)
+    .style("opacity", 1)
+    .attr("r", 20);
+
+  // update panel info
+
+  d3.select(".info")
+    .html(`
+      <b>${d.data.name}</b><br>
+      Depth: ${d.depth}<br>
+      Sales: ${d.data.sales || "-"}
+    `);
+
+});
+
+  // =========================
+  // HOVER EFFECT
+  // =========================
+
+  node.on("mouseover", function(event, d) {
+
+    d3.select(this)
+      .select("circle")
+      .transition()
+      .duration(200)
+      .attr("r", function() {
+
+        const current = d3.select(this).attr("r");
+
+        return +current + 5;
+      });
+
+  })
+
+  .on("mouseout", function(event, d) {
+
+    d3.select(this)
+      .select("circle")
+      .transition()
+      .duration(200)
+      .attr("r", () => {
+
+        if(d.depth === 0) return 14;
+
+        if(d.data.sales)
+          return sizeScale(d.data.sales);
+
+        return 5;
+      });
+
+  });
+
+
+
+// =========================
+// FILTER CATEGORY
+// =========================
+
+d3.select("#categoryFilter")
+  .on("change", function(){
+
+    const value = this.value;
+
+    node.style("display", d => {
+
+      if(value === "all")
+        return null;
+
+      if(d.data.name === value)
+        return null;
+
+      if(d.ancestors().some(
+        a => a.data.name === value
+      ))
+        return null;
+
+      return "none";
+
+    });
+
+  });
+
+
+// =========================
+// MINI MAP
+// =========================
+
+const miniSvg = d3.select("#miniSvg")
+  .attr("viewBox", [-100, -100, 200, 200]);
+
+const miniGroup = miniSvg.append("g");
+
+const miniScale = 200 / (2 * radius);
+
+const radialLinkMini = d3.linkRadial()
+  .angle(d => d.x)
+  .radius(d => d.y * miniScale);
+
+// MINI LINKS
+miniGroup.selectAll("path")
+  .data(root.links())
+  .join("path")
+  .attr("d", radialLinkMini)
+  .attr("fill", "none")
+  .attr("stroke", "#00F5D4")
+  .attr("stroke-opacity", 0.4)
+  .attr("stroke-width", 0.8);
+
+// MINI NODES 
+miniGroup.selectAll("circle")
+  .data(root.descendants())
+  .join("circle")
+  .attr("cx", d => d.y * miniScale * Math.cos(d.x - Math.PI / 2))
+  .attr("cy", d => d.y * miniScale * Math.sin(d.x - Math.PI / 2))
+  .attr("r", d => d.depth === 0 ? 3 : 1.5)
+  .attr("fill", d => {
+    if (d.depth === 0) return "#ffffff";
+    if (d.depth === 3) return color(d.data.name);
+    return "#69b3a2";
+  })
+  .attr("opacity", 0.9);
+
+  // MINI LABELS  
+miniGroup.selectAll("text")
+  .data(root.descendants().filter(d => d.depth === 3))
+  .join("text")
+  .attr("x", d => d.y * miniScale * Math.cos(d.x - Math.PI / 2))
+  .attr("y", d => d.y * miniScale * Math.sin(d.x - Math.PI / 2) - 3)
+  .attr("text-anchor", "middle")
+  .style("fill", d => color(d.data.name))
+  .style("font-size", "4px")
+  .style("font-family", "Poppins")
+  .text(d => d.data.name[0]);
+
+  });
+
+  // =========================
+// MINIMAP CLICK NAVIGATION
+// =========================
+
+miniSvg.on("click", function(event){
+
+  const [x, y] = d3.pointer(event);
+
+  svg.transition()
+    .duration(500)
+    .call(
+      zoom.transform,
+      d3.zoomIdentity
+        .translate(
+          -x * 4,
+          -y * 4
+        )
+        .scale(1)
+    );
+
+});
+  // =========================
+// MINI MAP VIEWPORT
+// =========================
+
+const viewport = miniSvg.append("rect")
+  .attr("x", -40)
+  .attr("y", -40)
+  .attr("width", 80)
+  .attr("height", 80)
+  .attr("fill", "none")
+  .attr("stroke", "#F15BB5")
+  .attr("stroke-width", 2)
+  .attr("rx", 8);
+
+</script>
+
+</body>
+</html>
